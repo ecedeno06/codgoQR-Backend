@@ -1,0 +1,164 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import QRCode from 'qrcode';
+import { query } from './db.js';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+const PUBLIC_PORTAL_URL = process.env.PUBLIC_PORTAL_URL || 'http://localhost:5173';
+
+app.use(cors());
+app.use(express.json());
+
+/**
+ * Health check
+ */
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, service: 'qr-mascotas-backend' });
+});
+
+/**
+ * Ruta pública: no requiere login.
+ * Esta es la ruta que usa el frontend público cuando alguien escanea el QR.
+ */
+app.get('/api/public/mascotas/qr/:codigo_qr', async (req, res) => {
+  const { codigo_qr } = req.params;
+
+  try {
+    const result = await query(
+      `
+      SELECT
+        id,
+        nombre_mascota,
+        color,
+        sexo,
+        foto,
+        microchip,
+        codigo_qr
+      FROM public.mascotas
+      WHERE codigo_qr = $1
+      LIMIT 1
+      `,
+      [codigo_qr]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ mensaje: 'Mascota no encontrada' });
+    }
+
+    // Importante: aquí se devuelven solo datos públicos.
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error consultando la mascota' });
+  }
+});
+
+/**
+ * Ruta dummy administrativa: crear mascota.
+ * En un sistema real esta ruta debe estar protegida con login/token.
+ */
+app.post('/api/admin/mascotas', async (req, res) => {
+  const {
+    email,
+    nombre_mascota,
+    idraza,
+    peso,
+    tamano,
+    color,
+    fecha_de_nacimiento,
+    esterilizado,
+    id_propietario,
+    sexo,
+    id_compania,
+    foto,
+    microchip
+  } = req.body;
+
+  try {
+    const result = await query(
+      `
+      INSERT INTO public.mascotas
+      (
+        email,
+        nombre_mascota,
+        idraza,
+        peso,
+        tamano,
+        color,
+        fecha_de_nacimiento,
+        esterilizado,
+        id_propietario,
+        sexo,
+        id_compania,
+        foto,
+        microchip
+      )
+      VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING id, nombre_mascota, codigo_qr
+      `,
+      [
+        email,
+        nombre_mascota,
+        idraza,
+        peso,
+        tamano,
+        color,
+        fecha_de_nacimiento,
+        esterilizado,
+        id_propietario,
+        sexo,
+        id_compania,
+        foto,
+        microchip
+      ]
+    );
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+
+    if (error.code === '23505') {
+      return res.status(409).json({
+        mensaje: 'Código QR duplicado. Reintenta la creación del registro.'
+      });
+    }
+
+    return res.status(500).json({ mensaje: 'Error creando la mascota' });
+  }
+});
+
+/**
+ * Genera la imagen QR en base64.
+ * El QR contiene la URL pública completa, no solo el código.
+ */
+app.get('/api/admin/mascotas/:codigo_qr/qr-image', async (req, res) => {
+  const { codigo_qr } = req.params;
+
+  try {
+    const publicUrl = `${PUBLIC_PORTAL_URL}/mascotas/qr/${codigo_qr}`;
+
+    const qrBase64 = await QRCode.toDataURL(publicUrl, {
+      errorCorrectionLevel: 'H',
+      width: 320,
+      margin: 2
+    });
+
+    return res.json({
+      codigo_qr,
+      publicUrl,
+      qrBase64
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error generando QR' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Backend escuchando en http://localhost:${PORT}`);
+});

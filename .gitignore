@@ -1,0 +1,90 @@
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build output
+dist/
+build/
+out/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Temporary files
+tmp/
+temp/
+
+# Testing
+jest-html-reporters-*
+test-results/
+
+# PM2
+.pm2/
+
+# Docker
+docker-compose.override.yml
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+
+# Uploads (si almacenas archivos localmente)
+uploads/
+public/uploads/
+
+# Database files locales
+*.sqlite
+*.sqlite3
+*.db
+
+# NestJS
+nest-cli.json.bak
+
+# Generated files
+*.tgz
+
+# MacOS
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs.db
+Desktop.ini
