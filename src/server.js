@@ -32,19 +32,40 @@ app.get('/api/public/mascotas/qr/:codigo_qr', async (req, res) => {
     const result = await query(
       `
       SELECT
-        m.id_mascota,
-        u.email,
-        m.nombre_mascota,
-        m.color,
-        m.microchip,
-        m.codigo_qr,
-        m.foto,
-        m.sexo,
-        u.nombre as nombre_propietario
+          m.id_mascota,
+          u.email,
+          m.nombre_mascota,
+          m.color,
+          m.microchip,
+          m.codigo_qr,
+          m.foto,
+          m.sexo,
+          u.nombre AS nombre_propietario,
+
+          a.latitud,
+          a.longitud,
+          a.precision_metros,
+          a.fecha_hora
+
       FROM public.mascotas m
-      LEFT JOIN public.usuarios u ON u."idUsuario" = m.id_propietario
+
+      LEFT JOIN public.usuarios u
+          ON u."idUsuario" = m.id_propietario
+
+      LEFT JOIN LATERAL (
+          SELECT
+              av.latitud,
+              av.longitud,
+              av.precision_metros,
+              av.fecha_hora
+          FROM public.avistamientos av
+          WHERE av.codigo_qr = m.codigo_qr
+          ORDER BY av.fecha_hora DESC
+          LIMIT 1
+      ) a ON TRUE
+
       WHERE m.codigo_qr ILIKE $1
-      LIMIT 1
+      LIMIT 1;
       `,
       [codigo_qr]
     );
