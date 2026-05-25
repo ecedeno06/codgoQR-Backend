@@ -29,52 +29,52 @@ app.get('/api/public/mascotas/qr/:codigo_qr', async (req, res) => {
   const { codigo_qr } = req.params;
 
   try {
-    const result = await query(
+    const mascota = await query(
       `
-      SELECT
-          m.id_mascota,
-          u.email,
-          m.nombre_mascota,
-          m.color,
-          m.microchip,
-          m.codigo_qr,
-          m.foto,
-          m.sexo,
-          u.nombre AS nombre_propietario,
+        SELECT
+            m.id_mascota,
+            u.email,
+            m.nombre_mascota,
+            m.color,
+            m.microchip,
+            m.codigo_qr,
+            m.foto,
+            m.sexo,
+            u.nombre AS nombre_propietario
 
-          a.latitud,
-          a.longitud,
-          a.precision_metros,
-          a.fecha_hora
+        FROM public.mascotas m
+        LEFT JOIN public.usuarios u
+            ON u."idUsuario" = m.id_propietario
 
-      FROM public.mascotas m
-
-      LEFT JOIN public.usuarios u
-          ON u."idUsuario" = m.id_propietario
-
-      LEFT JOIN LATERAL (
-          SELECT
-              av.latitud,
-              av.longitud,
-              av.precision_metros,
-              av.fecha_hora
-          FROM public.avistamientos av
-          WHERE av.codigo_qr = m.codigo_qr
-          ORDER BY av.fecha_hora DESC
-          LIMIT 1
-      ) a ON TRUE
-
-      WHERE m.codigo_qr ILIKE $1
-      LIMIT 1;
+        WHERE m.codigo_qr ILIKE $1;
       `,
       [codigo_qr]
     );
 
-    if (result.rowCount === 0) {
+    if (mascota.rowCount === 0) {
       return res.status(404).json({ mensaje: 'Mascota no encontrada' });
     }
 
-    return res.json(result.rows[0]);
+     const historialResult = await query(
+      `
+      SELECT
+          fecha_hora,
+          latitud,
+          longitud,
+          precision_metros
+      FROM public.avistamientos
+      WHERE codigo_qr = $1
+      ORDER BY fecha_hora DESC
+      LIMIT 5
+      `,
+      [codigo_qr]
+    );
+
+    const pet = mascota.rows[0];
+
+    pet.avistamientos = historialResult.rows;
+
+    return res.json(pet);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ mensaje: 'Error consultando la mascota' });
